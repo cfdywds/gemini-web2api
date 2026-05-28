@@ -10,7 +10,7 @@ Usage:
 
 Client configuration (Cherry Studio, ChatBox, etc.):
     Base URL: http://localhost:8081/v1
-    API Key: (anything or empty)
+    API Key: config.api_keys item, or anything if api_keys is empty
 """
 import json
 import urllib.request
@@ -38,6 +38,7 @@ DEFAULT_CONFIG = {
     "request_timeout_sec": 180,
     "gemini_bl": "boq_assistant-bard-web-server_20260525.09_p0",
     "default_model": "gemini-3.5-flash",
+    "api_keys": [],
     "log_requests": True,
     "cookie_file": None,
     "proxy": None,
@@ -307,6 +308,20 @@ class GeminiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _authorized(self):
+        keys = CONFIG.get("api_keys") or []
+        if not keys:
+            return True
+        auth = self.headers.get("Authorization", "")
+        key = auth[7:] if auth.startswith("Bearer ") else self.headers.get("x-api-key", "")
+        return key in keys
+
+    def _require_auth(self):
+        if self._authorized():
+            return True
+        self.send_json({"error": {"message": "invalid api key"}}, 401)
+        return False
+
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -316,6 +331,8 @@ class GeminiHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         try:
+            if self.path.startswith("/v1/") and not self._require_auth():
+                return
             if self.path == "/v1/models":
                 self.send_json({"object": "list", "data": [
                     {"id": n, "object": "model", "created": 1700000000,
@@ -334,6 +351,8 @@ class GeminiHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            if self.path.startswith("/v1/") and not self._require_auth():
+                return
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length) if length else b""
             if self.path == "/v1/chat/completions":

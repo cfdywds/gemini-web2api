@@ -10,7 +10,7 @@
 
 ## 特性
 
-- **零认证**: 不需要 API Key, 不需要 Google 账号 (匿名访问)
+- **可选密钥**: `api_keys` 为空时免密, 填入密钥后按 OpenAI Bearer Key 校验
 - **OpenAI 兼容**: 直接替换 `/v1/chat/completions` 和 `/v1/models`
 - **工具调用**: 完整的 Function Calling 支持 (OpenAI 格式)
 - **多模型**: Flash, Flash Thinking (2万字+输出), Pro, Auto, Lite
@@ -35,7 +35,7 @@ python gemini_web2api.py
 | 字段 | 值 |
 |------|-----|
 | Base URL | `http://localhost:8081/v1` |
-| API Key | `none` (随便填) |
+| API Key | `config.json` 中的任意 `api_keys`；未配置时随便填 |
 | Model | `gemini-3.5-flash-thinking` |
 
 ### curl
@@ -43,6 +43,7 @@ python gemini_web2api.py
 ```bash
 curl http://localhost:8081/v1/chat/completions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-your-key" \
   -d '{"model":"gemini-3.5-flash","messages":[{"role":"user","content":"你好!"}]}'
 ```
 
@@ -50,7 +51,7 @@ curl http://localhost:8081/v1/chat/completions \
 
 ```python
 from openai import OpenAI
-client = OpenAI(base_url="http://localhost:8081/v1", api_key="none")
+client = OpenAI(base_url="http://localhost:8081/v1", api_key="sk-your-key")
 resp = client.chat.completions.create(
     model="gemini-3.5-flash-thinking",
     messages=[{"role": "user", "content": "解释量子计算"}]
@@ -118,11 +119,37 @@ SID=你的SID值; HSID=你的HSID值; SSID=你的SSID值; APISID=你的APISID值
   "retry_attempts": 3,
   "retry_delay_sec": 2,
   "request_timeout_sec": 180,
+  "api_keys": ["sk-your-key"],
   "cookie_file": null,
   "proxy": null,
   "log_requests": true
 }
 ```
+
+`api_keys` 为空数组 `[]` 时不校验密钥；填入一个或多个密钥后, `/v1/*` 接口需要 `Authorization: Bearer <key>` 或 `x-api-key: <key>`.
+
+## Docker 部署
+
+```bash
+cp config.example.json config.json
+docker build -t gemini-web2api .
+docker run -d --name gemini-web2api -p 8081:8081 -v ./config.json:/app/config.json gemini-web2api
+```
+
+或使用 Docker Compose:
+
+```bash
+cp config.example.json config.json
+docker compose up -d
+```
+
+如需挂载 Cookie 文件:
+
+```bash
+docker run -d --name gemini-web2api -p 8081:8081 -v ./config.json:/app/config.json -v ./cookie.txt:/app/cookie.txt gemini-web2api
+```
+
+此时 `config.json` 中设置 `"cookie_file": "/app/cookie.txt"`.
 
 ## 代理配置
 
