@@ -524,10 +524,17 @@ class GeminiHandler(BaseHTTPRequestHandler):
     # ─── Google Native API (Gemini CLI compatible) ────────────────────────────
 
     def _parse_google_model_from_path(self):
-        """Extract model name from /v1beta/models/{model}:method path."""
-        m = re.match(r'/v1beta/models/([^:?]+)', self.path)
+        """Extract model name from /v1*/models/{model}:method path."""
+        parsed_path = urllib.parse.urlparse(self.path).path
+        m = re.match(
+            r'^/v1(?:alpha|beta)?/models/(.+?):(?:generateContent|streamGenerateContent)$',
+            parsed_path,
+        )
         if m:
-            return m.group(1)
+            model_name = urllib.parse.unquote(m.group(1))
+            if model_name.startswith("models/"):
+                model_name = model_name.split("/", 1)[1]
+            return model_name
         return None
 
     def _handle_google_models_list(self):
