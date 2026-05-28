@@ -1,5 +1,9 @@
 # gemini-web2api
 
+<p align="center">
+  <img src="logo.png" width="200" alt="gemini-web2api logo">
+</p>
+
 [中文文档](README_CN.md)
 
 Convert Google Gemini's web interface into an OpenAI-compatible API. Zero authentication, zero cost, cross-platform.
